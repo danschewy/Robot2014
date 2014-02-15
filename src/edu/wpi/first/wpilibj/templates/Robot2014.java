@@ -29,17 +29,19 @@ public class Robot2014 extends IterativeRobot {
     private static final int JOYSTICK_USB_PORT = 1;
 	private static final int ARM_CONTROL_AXIS = 3;
 	private static final double ARM_FULL_SPEED = 1d;
+    private static final double ARM_REVERSE_SPEED = -0.3d;
 	private static final double ARM_NO_SPEED = 0d;
 	private static final double ARM_TIMEOUT_THRESHOLD = 0.65d;
-    /* member variables */
+	/* member variables */
     private Joystick joystick;
     private DriverStationLCD driverStationLCD;
     private SpeedController armSpeedController;
-	private boolean isArmSpinning;
+	private boolean isArmSpinningForward;
 	private Timer armTimer;
 	private RobotDrive robotDrive;
     private SpeedController leftDriveSpeedController;
 	private SpeedController rightDriveSpeedController;
+	
 	 
 	/**
      * This function is run when the robot is first started up and should be
@@ -48,7 +50,7 @@ public class Robot2014 extends IterativeRobot {
     public void robotInit() {
         this.joystick = new Joystick(JOYSTICK_USB_PORT);
         this.driverStationLCD = DriverStationLCD.getInstance();
-		this.isArmSpinning = false;
+		this.isArmSpinningForward = false;
 		this.armTimer = new Timer();
 		this.armSpeedController = new Victor(3);
 		this.leftDriveSpeedController = new Talon(1);
@@ -68,23 +70,27 @@ public class Robot2014 extends IterativeRobot {
      */
     public void teleopPeriodic() {
 // the button -when axis 3=-1, motor will run only for 1 second
-		if (this.isArmSpinning) {
+		if (this.isArmSpinningForward) {
 			if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
 				this.armSpeedController.set(ARM_NO_SPEED);
 				this.armTimer.stop();
-				this.isArmSpinning = false;
+				this.isArmSpinningForward = false;
 			}
 		} else {
 			double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
 
 			if (axisValue == -1d) {
 				this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion tofull motion
-				this.isArmSpinning = true; //to remember that motor is running
+				this.isArmSpinningForward = true; //to remember that motor is running
 				this.armTimer.reset();
 				this.armTimer.start();
+			} else if (axisValue == 1d) {
+				this.armSpeedController.set(ARM_REVERSE_SPEED); // going from no motion tofull motion
+			} else {
+				this.armSpeedController.set(ARM_NO_SPEED);
 			}
 		}
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1,"" + this.isArmSpinning);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1,"" + this.isArmSpinningForward);
 		this.driverStationLCD.updateLCD();
 		this.robotDrive.arcadeDrive(this.joystick);
 
