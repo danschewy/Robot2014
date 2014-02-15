@@ -11,7 +11,9 @@ package edu.wpi.first.wpilibj.templates;
 import edu.wpi.first.wpilibj.DriverStationLCD;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 
@@ -28,14 +30,18 @@ public class Robot2014 extends IterativeRobot {
 	private static final int ARM_CONTROL_AXIS = 3;
 	private static final double ARM_FULL_SPEED = 1d;
 	private static final double ARM_NO_SPEED = 0d;
-	private static final double ARM_TIMEOUT_THRESHOLD = 1d;
+	private static final double ARM_TIMEOUT_THRESHOLD = 0.65d;
     /* member variables */
     private Joystick joystick;
     private DriverStationLCD driverStationLCD;
     private SpeedController armSpeedController;
 	private boolean isArmSpinning;
 	private Timer armTimer;
-    /**
+	private RobotDrive robotDrive;
+    private SpeedController leftDriveSpeedController;
+	private SpeedController rightDriveSpeedController;
+	 
+	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
      */
@@ -45,6 +51,9 @@ public class Robot2014 extends IterativeRobot {
 		this.isArmSpinning = false;
 		this.armTimer = new Timer();
 		this.armSpeedController = new Victor(3);
+		this.leftDriveSpeedController = new Talon(1);
+		this.rightDriveSpeedController = new Talon(6);
+		this.robotDrive = new RobotDrive(this.leftDriveSpeedController, this.rightDriveSpeedController);
     }
 
     /**
@@ -76,7 +85,8 @@ public class Robot2014 extends IterativeRobot {
 			}
 		}
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1,"" + this.isArmSpinning);
-		this.driverStationLCD.updateLCD();    
+		this.driverStationLCD.updateLCD();
+		this.robotDrive.arcadeDrive(this.joystick);
 
 	}
     
