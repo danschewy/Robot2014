@@ -8,7 +8,12 @@
 package edu.wpi.first.wpilibj.templates;
 
 
+import edu.wpi.first.wpilibj.DriverStationLCD;
 import edu.wpi.first.wpilibj.IterativeRobot;
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.Victor;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -18,12 +23,28 @@ import edu.wpi.first.wpilibj.IterativeRobot;
  * directory.
  */
 public class Robot2014 extends IterativeRobot {
+    /* constants */
+    private static final int JOYSTICK_USB_PORT = 1;
+	private static final int ARM_CONTROL_AXIS = 3;
+	private static final double ARM_FULL_SPEED = 1d;
+	private static final double ARM_NO_SPEED = 0d;
+	private static final double ARM_TIMEOUT_THRESHOLD = 1d;
+    /* member variables */
+    private Joystick joystick;
+    private DriverStationLCD driverStationLCD;
+    private SpeedController armSpeedController;
+	private boolean isArmSpinning;
+	private Timer armTimer;
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
      */
     public void robotInit() {
-
+        this.joystick = new Joystick(JOYSTICK_USB_PORT);
+        this.driverStationLCD = DriverStationLCD.getInstance();
+		this.isArmSpinning = false;
+		this.armTimer = new Timer();
+		this.armSpeedController = new Victor(3);
     }
 
     /**
@@ -37,14 +58,99 @@ public class Robot2014 extends IterativeRobot {
      * This function is called periodically during operator control
      */
     public void teleopPeriodic() {
-        
-    }
+// the button -when axis 3=-1, motor will run only for 1 second
+		if (this.isArmSpinning) {
+			if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
+				this.armSpeedController.set(ARM_NO_SPEED);
+				this.armTimer.stop();
+				this.isArmSpinning = false;
+			}
+		} else {
+			double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
+
+			if (axisValue == -1d) {
+				this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion tofull motion
+				this.isArmSpinning = true; //to remember that motor is running
+				this.armTimer.reset();
+				this.armTimer.start();
+			}
+		}
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1,"" + this.isArmSpinning);
+		this.driverStationLCD.updateLCD();    
+
+	}
     
     /**
      * This function is called periodically during test mode
      */
     public void testPeriodic() {
-    
-    }
-    
+		for (int x=1;x<13;x++){
+			if (this.joystick.getRawButton(x)) {
+				this.driverStationLCD.println(DriverStationLCD.Line.kUser1, x, "1");
+			} else {
+				this.driverStationLCD.println(DriverStationLCD.Line.kUser1, x, "0");
+			}
+		}
+		for (int axis=1;axis<7;axis++){		
+			int pos = (axis%2==0)? 12 : 1;
+			DriverStationLCD.Line line;	
+			if (axis<3){
+				line = DriverStationLCD.Line.kUser3;
+			}
+			else if (axis<5){
+				line = DriverStationLCD.Line.kUser4;
+			}
+			else{
+				line = DriverStationLCD.Line.kUser5;
+			}
+			
+			double axisValue = this.joystick.getRawAxis(axis);
+
+			StringBuffer axisString = new StringBuffer().append(axisValue); //converting the initial value which is double to string buffer
+
+			if (Math.abs(axisValue)>axisValue){
+				axisString.setLength(8);
+			}
+			else if (axisValue==0d || axisValue==1d){
+				axisString.setLength(8);
+			}
+			else {
+				axisString.setLength(7);
+				axisString.setLength(8);
+				//axisString = axis + ":" + axisString;
+			}
+			axisString.insert(0, axis + ":"); // starting from the beginnng it puts the axis and the colon to show what will be the numbers
+			this.driverStationLCD.println(line, pos, axisString); //prints out the value into the LCD
+			
+			
+/*			if (Math.abs(axisValue)>axisValue){
+				StringBuffer axisString = new StringBuffer().append(axisValue);
+				axisString.setLength(8);
+				axisString.insert(0, axis + ":");
+				System.out.println("negative axis:" + axisString);
+				this.driverStationLCD.println(line, pos, axisString);
+			}
+			else if (axisValue==0d || axisValue==1d){
+				System.out.println("whole number:" + axisValue);
+				StringBuffer axisString = new StringBuffer().append(axisValue);
+				axisString.setLength(8);
+				axisString.insert(0, axis + ":");
+				this.driverStationLCD.println(line, pos, axisString);
+			}
+			else {
+				StringBuffer axisString = new StringBuffer().append(axisValue);
+				axisString.setLength(7);
+				axisString.setLength(8);
+				//axisString = axis + ":" + axisString;
+				axisString.insert(0, axis + ":");
+				System.out.println("positive axis:" + axisString);
+				this.driverStationLCD.println(line, pos, axisString);
+			} */
+		}
+		this.driverStationLCD.updateLCD();    
+	}
 }
+/*
+1:012.34567
+
+*/
