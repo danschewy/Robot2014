@@ -199,7 +199,7 @@ public class Robot2014 extends IterativeRobot {
 	private void teleopArm() {
 	// the button -when axis 3=-1, motor will run only for 1 second
 		String spinningString;
-		switch ((this.armState.booleanValue())?1:0) {
+		switch ((this.armState == null)?-1:(this.armState.booleanValue())?1:0) {
 			case 1:  // do I remember leaving it spinning forward?
 				if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
 					this.armSpeedController.set(ARM_NO_SPEED);
@@ -212,7 +212,7 @@ public class Robot2014 extends IterativeRobot {
 				}
 				break;
 			case 0:  // do I remember leaving it spinning backwards?
-				if (this.photoSensorDigitalInput.get()) {
+				if (!this.photoSensorDigitalInput.get()) {
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.armState = null;
 					spinningString="Not Spinning      ";
@@ -357,10 +357,10 @@ public class Robot2014 extends IterativeRobot {
 		boolean shouldScoopUp = this.joystick.getRawButton(1);
 		boolean shouldScoopDown = this.joystick.getRawButton(4);
 		if (shouldScoopUp) {
-			if (this.scoopTicks==0){
+			//if (this.scoopTicks==0){
 				this.scoopSpeedController.set(SCOOP_UP_SPEED);
-				this.scoopTicks++;
-			}
+				//this.scoopTicks++;
+			//}
 			this.scoopSpeedController.set(SCOOP_UP_SPEED);
 			System.out.println("were   scooping up");	
 		} 
