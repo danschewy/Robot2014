@@ -180,12 +180,11 @@ public class Robot2014 extends IterativeRobot {
 	private void teleopArm() {
 	// the button -when axis 3=-1, motor will run only for 1 second
 		String spinningString;
-		switch (this.armState) {
-			case Boolean.TRUE:  // do I remember leaving it spinning forward?
+		switch (this.armState.booleanValue()) {
+			case true:  // do I remember leaving it spinning forward?
 				if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.armTimer.stop();
-					this.isArmSpinningForward = false;
 					this.armState = null;
 					spinningString="Not Spinning      ";
 				} else {
@@ -193,11 +192,15 @@ public class Robot2014 extends IterativeRobot {
 					spinningString="Spinning Forward  ";
 				}
 				break;
-			case Boolean.FALSE:  // do I remember leaving it spinning backwards?
+			case false:  // do I remember leaving it spinning backwards?
 				if (this.photoSensorDigitalInput.get()) {
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.armState = null;
 					spinningString="Not Spinning      ";
+				}
+				else {
+					this.armState = Boolean.FALSE;
+					spinningString="Spinning Backwards";
 				}
 				break;
 			default:  // I remember not leaving it spinning at all
