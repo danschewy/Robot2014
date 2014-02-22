@@ -47,10 +47,13 @@ public class Robot2014 extends IterativeRobot {
 	private static final double SCOOP_UP_SPEED = .65d;
 	private static final double SCOOP_DOWN_SPEED = -0.25d;
 	private static final double NOT_SCOOPING = 0d;
+	private static final int TICK_START = 10;
+	private static final int ROTATION_INVERSION_D_S_D_I = 1;
 	/* member variables */
     private GenericHID joystick;
     private DriverStationLCD driverStationLCD;
-    private SpeedController armSpeedController;
+    private DriverStation driverStation;
+	private SpeedController armSpeedController;
 	private SpeedController scoopSpeedController;
 	private SpeedController leftDriveSpeedController;
 	private SpeedController rightDriveSpeedController;
@@ -58,6 +61,8 @@ public class Robot2014 extends IterativeRobot {
 	private Timer armTimer;
 	private DigitalInput photoSensorDigitalInput;
 	private RobotDrive robotDrive;
+	private int scoopTicks=0;
+	private boolean invertDriveRotation = true;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -65,9 +70,9 @@ public class Robot2014 extends IterativeRobot {
     public void robotInit() {
         this.joystick = new Joystick(JOYSTICK_USB_PORT);
         this.driverStationLCD = DriverStationLCD.getInstance();
+		this.driverStation = DriverStation.getInstance();
 		this.armSpeedController = new Victor(3);
 		this.scoopSpeedController = new Talon(4);
-		this.isArmSpinningForward = false;
 		this.armTimer = new Timer();
 		this.photoSensorDigitalInput = new DigitalInput(PHOTO_SENSOR_D_I_O_PORT);
 		this.leftDriveSpeedController = new Talon(LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
@@ -89,15 +94,29 @@ public class Robot2014 extends IterativeRobot {
 	 */
 	public void teleopInit() {
 		this.driverStationLCD.clear();
+		this.invertDriveRotation = this.driverStation.getDigitalIn(ROTATION_INVERSION_D_S_D_I);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, (this.invertDriveRotation)?"Inverted Rotation    ":"Not inverted rotation");
+		this.driverStationLCD.updateLCD();
 	}
-    /**
+    
+	public void teleopDrive(){
+		double moveValue = this.joystick.getRawAxis(ROBOT_MOVEMENT_AXIS);
+		double rotateValue = this.joystick.getRawAxis(ROBOT_ROTATE_AXIS);
+		this.robotDrive.arcadeDrive( moveValue, ((this.invertDriveRotation)?-1d:1d)*rotateValue, SQUARED_INPUTS);
+		
+	} 
+	
+	
+	
+	/**
      * This function is called periodically during operator control
      */
-    public void teleopPeriodic() {
+	public void teleopPeriodic() {
 		this.teleopScooper();
 		this.teleopArm();
+		this.teleopDrive();
 		this.driverStationLCD.updateLCD();    
-		this.robotDrive.arcadeDrive(this.joystick, ROBOT_MOVEMENT_AXIS, this.joystick, ROBOT_ROTATE_AXIS, SQUARED_INPUTS);
+		
 		this.updateDashboard();
 	
 	}
@@ -180,8 +199,8 @@ public class Robot2014 extends IterativeRobot {
 	private void teleopArm() {
 	// the button -when axis 3=-1, motor will run only for 1 second
 		String spinningString;
-		switch (this.armState.booleanValue()) {
-			case true:  // do I remember leaving it spinning forward?
+		switch ((this.armState.booleanValue())?1:0) {
+			case 1:  // do I remember leaving it spinning forward?
 				if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.armTimer.stop();
@@ -192,7 +211,7 @@ public class Robot2014 extends IterativeRobot {
 					spinningString="Spinning Forward  ";
 				}
 				break;
-			case false:  // do I remember leaving it spinning backwards?
+			case 0:  // do I remember leaving it spinning backwards?
 				if (this.photoSensorDigitalInput.get()) {
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.armState = null;
@@ -207,7 +226,6 @@ public class Robot2014 extends IterativeRobot {
 				double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
 				if (axisValue == -1d) {
 					this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion to full motion
-					this.isArmSpinningForward = true; //to remember that motor is running
 					this.armTimer.reset();
 					this.armTimer.start();
 					this.armState = Boolean.TRUE;
@@ -339,8 +357,12 @@ public class Robot2014 extends IterativeRobot {
 		boolean shouldScoopUp = this.joystick.getRawButton(1);
 		boolean shouldScoopDown = this.joystick.getRawButton(4);
 		if (shouldScoopUp) {
+			if (this.scoopTicks==0){
+				this.scoopSpeedController.set(SCOOP_UP_SPEED);
+				this.scoopTicks++;
+			}
 			this.scoopSpeedController.set(SCOOP_UP_SPEED);
-			System.out.println("were     scooping up");
+			System.out.println("were   scooping up");	
 		} 
 		else if (shouldScoopDown) {
 			this.scoopSpeedController.set(SCOOP_DOWN_SPEED);
@@ -348,6 +370,7 @@ public class Robot2014 extends IterativeRobot {
 		}
 		else {
 			this.scoopSpeedController.set(NOT_SCOOPING);
+			this.scoopTicks=0;
 		}
 	}			
 }
