@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------------------*/
+ /*----------------------------------------------------------------------------*/
 /* Copyright (c) FIRST 2008. All Rights Reserved.                             */
 /* Open Source Software - may be modified and shared by FRC teams. The code   */
 /* must be accompanied by the FIRST BSD license file in the root directory of */
@@ -8,13 +8,19 @@
 package edu.wpi.first.wpilibj.templates;
 
 
+import edu.wpi.first.wpilibj.AnalogModule;
+import edu.wpi.first.wpilibj.Dashboard;
+import edu.wpi.first.wpilibj.DigitalModule;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Victor;
 
 /**
@@ -27,22 +33,31 @@ import edu.wpi.first.wpilibj.Victor;
 public class Robot2014 extends IterativeRobot {
     /* constants */
     private static final int JOYSTICK_USB_PORT = 1;
-	private static final int ARM_CONTROL_AXIS = 3;
+	private static final int ARM_CONTROL_AXIS = 3; 
 	private static final double ARM_FULL_SPEED = 1d;
-    private static final double ARM_REVERSE_SPEED = -0.3d;
+	private static final double ARM_REVERSE_SPEED = -.2d;
 	private static final double ARM_NO_SPEED = 0d;
-	private static final double ARM_TIMEOUT_THRESHOLD = 0.65d;
+	private static final double ARM_TIMEOUT_THRESHOLD = .5d;
+	private static final int LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 1;
+	private static final int RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 6;
+	private static final int PHOTO_SENSOR_D_I_O_PORT = 1;
+	private static final int ROBOT_MOVEMENT_AXIS = 2;
+	private static final int ROBOT_ROTATE_AXIS = 1;
+	private static final boolean SQUARED_INPUTS = true;
+	private static final double SCOOP_UP_SPEED = .65d;
+	private static final double SCOOP_DOWN_SPEED = -0.25d;
+	private static final double NOT_SCOOPING = 0d;
 	/* member variables */
-    private Joystick joystick;
+    private GenericHID joystick;
     private DriverStationLCD driverStationLCD;
     private SpeedController armSpeedController;
-	private boolean isArmSpinningForward;
-	private Timer armTimer;
-	private RobotDrive robotDrive;
-    private SpeedController leftDriveSpeedController;
+	private SpeedController scoopSpeedController;
+	private SpeedController leftDriveSpeedController;
 	private SpeedController rightDriveSpeedController;
-	
-	 
+	private Boolean armState;  // null = no spin; true = forward; false = reverse
+	private Timer armTimer;
+	private DigitalInput photoSensorDigitalInput;
+	private RobotDrive robotDrive;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -50,13 +65,16 @@ public class Robot2014 extends IterativeRobot {
     public void robotInit() {
         this.joystick = new Joystick(JOYSTICK_USB_PORT);
         this.driverStationLCD = DriverStationLCD.getInstance();
+		this.armSpeedController = new Victor(3);
+		this.scoopSpeedController = new Talon(4);
 		this.isArmSpinningForward = false;
 		this.armTimer = new Timer();
-		this.armSpeedController = new Victor(3);
-		this.leftDriveSpeedController = new Talon(1);
-		this.rightDriveSpeedController = new Talon(6);
+		this.photoSensorDigitalInput = new DigitalInput(PHOTO_SENSOR_D_I_O_PORT);
+		this.leftDriveSpeedController = new Talon(LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
+		this.rightDriveSpeedController = new Talon(RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.robotDrive = new RobotDrive(this.leftDriveSpeedController, this.rightDriveSpeedController);
-    }
+		
+	}
 
     /**
      * This function is called periodically during autonomous
@@ -64,38 +82,32 @@ public class Robot2014 extends IterativeRobot {
     public void autonomousPeriodic() {
 
     }
-
+	
+	 
+	/** 
+	 * This function is called once you hit enable for periodic mode
+	 */
+	public void teleopInit() {
+		this.driverStationLCD.clear();
+	}
     /**
      * This function is called periodically during operator control
      */
     public void teleopPeriodic() {
-// the button -when axis 3=-1, motor will run only for 1 second
-		if (this.isArmSpinningForward) {
-			if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
-				this.armSpeedController.set(ARM_NO_SPEED);
-				this.armTimer.stop();
-				this.isArmSpinningForward = false;
-			}
-		} else {
-			double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
-
-			if (axisValue == -1d) {
-				this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion tofull motion
-				this.isArmSpinningForward = true; //to remember that motor is running
-				this.armTimer.reset();
-				this.armTimer.start();
-			} else if (axisValue == 1d) {
-				this.armSpeedController.set(ARM_REVERSE_SPEED); // going from no motion tofull motion
-			} else {
-				this.armSpeedController.set(ARM_NO_SPEED);
-			}
-		}
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1,"" + this.isArmSpinningForward);
-		this.driverStationLCD.updateLCD();
-		this.robotDrive.arcadeDrive(this.joystick);
-
+		this.teleopScooper();
+		this.teleopArm();
+		this.driverStationLCD.updateLCD();    
+		this.robotDrive.arcadeDrive(this.joystick, ROBOT_MOVEMENT_AXIS, this.joystick, ROBOT_ROTATE_AXIS, SQUARED_INPUTS);
+		this.updateDashboard();
+	
 	}
     
+	/** 
+	 * This function is called once you hit enable for periodic mode
+	 */
+	public void testInit() {
+		this.driverStationLCD.clear();
+	}
     /**
      * This function is called periodically during test mode
      */
@@ -165,8 +177,175 @@ public class Robot2014 extends IterativeRobot {
 		}
 		this.driverStationLCD.updateLCD();    
 	}
-}
-/*
-1:012.34567
+	private void teleopArm() {
+	// the button -when axis 3=-1, motor will run only for 1 second
+		String spinningString;
+		switch (this.armState) {
+			case Boolean.TRUE:  // do I remember leaving it spinning forward?
+				if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
+					this.armSpeedController.set(ARM_NO_SPEED);
+					this.armTimer.stop();
+					this.isArmSpinningForward = false;
+					this.armState = null;
+					spinningString="Not Spinning      ";
+				} else {
+					this.armState = Boolean.TRUE;
+					spinningString="Spinning Forward  ";
+				}
+				break;
+			case Boolean.FALSE:  // do I remember leaving it spinning backwards?
+				if (this.photoSensorDigitalInput.get()) {
+					this.armSpeedController.set(ARM_NO_SPEED);
+					this.armState = null;
+					spinningString="Not Spinning      ";
+				}
+				break;
+			default:  // I remember not leaving it spinning at all
+				double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
+				if (axisValue == -1d) {
+					this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion to full motion
+					this.isArmSpinningForward = true; //to remember that motor is running
+					this.armTimer.reset();
+					this.armTimer.start();
+					this.armState = Boolean.TRUE;
+					spinningString="Spinning Forward  ";
+				}
+				else if (axisValue == 1d) {
+					this.armSpeedController.set(ARM_REVERSE_SPEED);
+					this.armState = Boolean.FALSE;
+					spinningString="Spinning Backwards";
+				}
+				else {
+					spinningString="Not Spinning      ";
+				}
+		}
+/*		if (this.isArmSpinningForward) {
+			if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
+				this.armSpeedController.set(ARM_NO_SPEED);
+				this.armTimer.stop();
+				this.isArmSpinningForward = false;
+				this.armState = null;
+				spinningString="Not Spinning      ";
+			} else {
+				this.armState = Boolean.TRUE;
+				spinningString="Spinning Forward  ";
+			}
+		} else {
+			double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
+			
+			if (axisValue == -1d) {
+				this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion to full motion
+				this.isArmSpinningForward = true; //to remember that motor is running
+				this.armTimer.reset();
+				this.armTimer.start();
+				this.armState = Boolean.TRUE;
+				spinningString="Spinning Forward  ";
+			}
+			else if (axisValue == 1d) {
+				this.armSpeedController.set(ARM_REVERSE_SPEED);
+				this.armState = Boolean.FALSE;
+				spinningString="Spinning Backwards";
+			}
+			else {
+				this.armSpeedController.set(ARM_NO_SPEED);
+				this.armState = null;
+				spinningString="Not Spinning      ";
+			}
+		} */
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1, spinningString);
+	}
+	
+	private void updateDashboard() {
+        Dashboard lowDashData = DriverStation.getInstance().getDashboardPackerLow();
+        lowDashData.addCluster();
+        {
+            lowDashData.addCluster();
+            {     //analog modules
+                lowDashData.addCluster();
+                {
+                    for (int i = 1; i <= 8; i++) {
+                        lowDashData.addFloat((float) AnalogModule.getInstance(1).getAverageVoltage(i));
+                    }
+                }
+                lowDashData.finalizeCluster();
+                /*lowDashData.addCluster();
+                {
+                    for (int i = 1; i <= 8; i++) {
+                        lowDashData.addFloat((float) AnalogModule.getInstance(2).getAverageVoltage(i));
+                    }
+                }
+                lowDashData.finalizeCluster();*/
+            }
+            lowDashData.finalizeCluster();
 
-*/
+            lowDashData.addCluster();
+            { //digital modules
+                lowDashData.addCluster();
+                {
+                    lowDashData.addCluster();
+                    {
+                        int module = 1;
+                        lowDashData.addByte(DigitalModule.getInstance(module).getRelayForward());
+                        lowDashData.addByte(DigitalModule.getInstance(module).getRelayForward());
+                        lowDashData.addShort(DigitalModule.getInstance(module).getAllDIO());
+                        lowDashData.addShort(DigitalModule.getInstance(module).getDIODirection());
+                        lowDashData.addCluster();
+                        {
+                            for (int i = 1; i <= 10; i++) {
+                                lowDashData.addByte((byte) DigitalModule.getInstance(module).getPWM(i));
+                            }
+                        }
+                        lowDashData.finalizeCluster();
+                    }
+                    lowDashData.finalizeCluster();
+                }
+                lowDashData.finalizeCluster();
+
+                /*lowDashData.addCluster();
+                {
+                    lowDashData.addCluster();
+                    {
+                        int module = 2;
+                        lowDashData.addByte(DigitalModule.getInstance(module).getRelayForward());
+                        lowDashData.addByte(DigitalModule.getInstance(module).getRelayReverse());
+                        lowDashData.addShort(DigitalModule.getInstance(module).getAllDIO());
+                        lowDashData.addShort(DigitalModule.getInstance(module).getDIODirection());
+                        lowDashData.addCluster();
+                        {
+                            for (int i = 1; i <= 10; i++) {
+                                lowDashData.addByte((byte) DigitalModule.getInstance(module).getPWM(i));
+                            }
+                        }
+                        lowDashData.finalizeCluster();
+                    }
+                    lowDashData.finalizeCluster();
+                }
+                lowDashData.finalizeCluster();*/
+
+            }
+            lowDashData.finalizeCluster();
+
+            //lowDashData.addByte(Solenoid.getAllFromDefaultModule());
+        }
+        lowDashData.finalizeCluster();
+        lowDashData.commit();
+
+    }
+
+	private void teleopScooper() {
+		boolean shouldScoopUp = this.joystick.getRawButton(1);
+		boolean shouldScoopDown = this.joystick.getRawButton(4);
+		if (shouldScoopUp) {
+			this.scoopSpeedController.set(SCOOP_UP_SPEED);
+			System.out.println("were     scooping up");
+		} 
+		else if (shouldScoopDown) {
+			this.scoopSpeedController.set(SCOOP_DOWN_SPEED);
+			System.out.println("were scooping down");
+		}
+		else {
+			this.scoopSpeedController.set(NOT_SCOOPING);
+		}
+	}			
+}
+
