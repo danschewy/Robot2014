@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Victor;
+import edu.wpi.first.wpilibj.Watchdog;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -53,6 +54,7 @@ public class Robot2014 extends IterativeRobot {
     private GenericHID joystick;
     private DriverStationLCD driverStationLCD;
     private DriverStation driverStation;
+	private Watchdog watchdog;
 	private SpeedController armSpeedController;
 	private SpeedController scoopSpeedController;
 	private SpeedController leftDriveSpeedController;
@@ -63,6 +65,8 @@ public class Robot2014 extends IterativeRobot {
 	private RobotDrive robotDrive;
 	private int scoopTicks=0;
 	private boolean invertDriveRotation = true;
+	private int autonomousState;
+	private Timer autonomousTimer;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -71,6 +75,7 @@ public class Robot2014 extends IterativeRobot {
         this.joystick = new Joystick(JOYSTICK_USB_PORT);
         this.driverStationLCD = DriverStationLCD.getInstance();
 		this.driverStation = DriverStation.getInstance();
+		this.watchdog = Watchdog.getInstance();
 		this.armSpeedController = new Victor(3);
 		this.scoopSpeedController = new Talon(4);
 		this.armTimer = new Timer();
@@ -81,14 +86,41 @@ public class Robot2014 extends IterativeRobot {
 		
 	}
 
-    /**
+  public void autonomousInit() {
+	  this.autonomousTimer = new Timer();
+	  this.autonomousState = 0;
+	  this.autonomousTimer.reset();
+	  this.autonomousTimer.start();
+  }
+	/**
      * This function is called periodically during autonomous
      */
-    public void autonomousPeriodic() {
-
-    }
+   public void autonomousPeriodic() {
+		this.watchdog.feed();
+		double moveValue;
+		double rotateValue;
+		switch (this.autonomousState) {
+			case 0:
+				moveValue = .6d;
+				rotateValue = 0d;
+				this.robotDrive.arcadeDrive( moveValue, rotateValue);
+				this.autonomousState++;
+				break;
+			case 1:
+				if (this.autonomousTimer.get() >= 3d ){
+					moveValue = 0d;
+					rotateValue = 0d;
+					this.robotDrive.arcadeDrive( moveValue, rotateValue);
+					this.autonomousTimer.stop();
+					this.autonomousState++;
+				}
+				break;
+			default:
+				break;
+		}
+	}
 	
-	 
+	
 	/** 
 	 * This function is called once you hit enable for periodic mode
 	 */
@@ -112,6 +144,7 @@ public class Robot2014 extends IterativeRobot {
      * This function is called periodically during operator control
      */
 	public void teleopPeriodic() {
+		this.watchdog.feed();
 		this.teleopScooper();
 		this.teleopArm();
 		this.teleopDrive();
@@ -131,6 +164,7 @@ public class Robot2014 extends IterativeRobot {
      * This function is called periodically during test mode
      */
     public void testPeriodic() {
+		this.watchdog.feed();
 		for (int x=1;x<13;x++){
 			if (this.joystick.getRawButton(x)) {
 				this.driverStationLCD.println(DriverStationLCD.Line.kUser1, x, "1");
