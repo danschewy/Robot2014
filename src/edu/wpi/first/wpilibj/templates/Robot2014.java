@@ -36,7 +36,7 @@ public class Robot2014 extends IterativeRobot {
     private static final int JOYSTICK_USB_PORT = 1;
 	private static final int ARM_CONTROL_AXIS = 3; 
 	private static final double ARM_FULL_SPEED = 1d;
-	private static final double ARM_REVERSE_SPEED = -.2d;
+	private static final double ARM_REVERSE_SPEED = -.3d;
 	private static final double ARM_NO_SPEED = 0d;
 	private static final double ARM_TIMEOUT_THRESHOLD = .5d;
 	private static final int LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 1;
@@ -50,6 +50,7 @@ public class Robot2014 extends IterativeRobot {
 	private static final double NOT_SCOOPING = 0d;
 	private static final int TICK_START = 10;
 	private static final int ROTATION_INVERSION_D_S_D_I = 1;
+	private static final int AUTONOMOUS_MODE_D_S_D_I = 8;
 	/* member variables */
     private GenericHID joystick;
     private DriverStationLCD driverStationLCD;
@@ -67,6 +68,7 @@ public class Robot2014 extends IterativeRobot {
 	private boolean invertDriveRotation = true;
 	private int autonomousState;
 	private Timer autonomousTimer;
+	private boolean autonomousMode;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -91,22 +93,80 @@ public class Robot2014 extends IterativeRobot {
 	  this.autonomousState = 0;
 	  this.autonomousTimer.reset();
 	  this.autonomousTimer.start();
+	  this.autonomousMode = this.driverStation.getDigitalIn(AUTONOMOUS_MODE_D_S_D_I);
   }
 	/**
      * This function is called periodically during autonomous
      */
    public void autonomousPeriodic() {
 		this.watchdog.feed();
+		if(this.autonomousMode){
+			this.autonomousModeBasic();
+		}
+		else {
+			this.autonomousModeAdvanced();
+		}
+	}
+
+	private void autonomousModeAdvanced() {
+		double moveValue;
+		double rotateValue;
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, "autonomousState=" + this.autonomousState);
+		switch (this.autonomousState) {
+			case 0:
+				this.scoopSpeedController.set(SCOOP_DOWN_SPEED);
+				this.autonomousState++;
+				this.driverStationLCD.updateLCD();
+				break;
+			case 1:
+				moveValue = .6d;
+				rotateValue = -.2d;
+				this.robotDrive.arcadeDrive( moveValue, rotateValue);
+				
+				if (this.autonomousTimer.get() >= 1d ){
+					this.scoopSpeedController.set(0);
+				}
+					
+				if (this.autonomousTimer.get() >=3d ){
+					moveValue = 0d;
+					rotateValue = 0d;
+					this.robotDrive.arcadeDrive( moveValue, rotateValue);
+					
+					this.armSpeedController.set(ARM_REVERSE_SPEED);
+					this.autonomousState++;
+					this.driverStationLCD.updateLCD();
+				}
+				break;
+			case 2:
+				if (this.autonomousTimer.get()>=3.5){
+					this.armSpeedController.set(ARM_FULL_SPEED);
+					this.autonomousState++;
+					this.driverStationLCD.updateLCD();
+				}
+				break;
+			case 3:
+				if (this.autonomousTimer.get()>=4){
+					this.armSpeedController.set(ARM_NO_SPEED);
+					this.autonomousState++;
+					this.driverStationLCD.updateLCD();
+				}
+				break;
+			default:
+				this.autonomousTimer.stop();
+				this.driverStationLCD.updateLCD();
+				break;
+		}
+	}
+   
+   
+	public void autonomousModeBasic(){
 		double moveValue;
 		double rotateValue;
 		switch (this.autonomousState) {
 			case 0:
-				moveValue = .6d;
-				rotateValue = 0d;
+				moveValue = -.6d;
+				rotateValue = -.2d;
 				this.robotDrive.arcadeDrive( moveValue, rotateValue);
-				this.autonomousState++;
-				break;
-			case 1:
 				if (this.autonomousTimer.get() >= 3d ){
 					moveValue = 0d;
 					rotateValue = 0d;
@@ -115,11 +175,11 @@ public class Robot2014 extends IterativeRobot {
 					this.autonomousState++;
 				}
 				break;
+			
 			default:
 				break;
 		}
-	}
-	
+   }
 	
 	/** 
 	 * This function is called once you hit enable for periodic mode
@@ -407,5 +467,7 @@ public class Robot2014 extends IterativeRobot {
 			this.scoopTicks=0;
 		}
 	}			
+
+	
 }
 
