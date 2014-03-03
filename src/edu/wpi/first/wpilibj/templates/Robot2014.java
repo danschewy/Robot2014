@@ -36,7 +36,7 @@ public class Robot2014 extends IterativeRobot {
     private static final int JOYSTICK_USB_PORT = 1;
 	private static final int ARM_CONTROL_AXIS = 3; 
 	private static final double ARM_FULL_SPEED = 1d;
-	private static final double ARM_REVERSE_SPEED = -.3d;
+	private static final double ARM_REVERSE_SPEED = -.2d;
 	private static final double ARM_NO_SPEED = 0d;
 	private static final double ARM_TIMEOUT_THRESHOLD = .5d;
 	private static final int LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 1;
@@ -69,6 +69,8 @@ public class Robot2014 extends IterativeRobot {
 	private int autonomousState;
 	private Timer autonomousTimer;
 	private boolean autonomousMode;
+	private int autoArmState;
+	private Timer autoArmTimer;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -85,7 +87,7 @@ public class Robot2014 extends IterativeRobot {
 		this.leftDriveSpeedController = new Talon(LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.rightDriveSpeedController = new Talon(RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.robotDrive = new RobotDrive(this.leftDriveSpeedController, this.rightDriveSpeedController);
-		
+		this.autoArmTimer = new Timer();
 	}
 
   public void autonomousInit() {
@@ -127,7 +129,7 @@ public class Robot2014 extends IterativeRobot {
 					this.scoopSpeedController.set(0);
 				}
 					
-				if (this.autonomousTimer.get() >=3d ){
+				if (this.autonomousTimer.get() >= 6d ){
 					moveValue = 0d;
 					rotateValue = 0d;
 					this.robotDrive.arcadeDrive( moveValue, rotateValue);
@@ -138,14 +140,14 @@ public class Robot2014 extends IterativeRobot {
 				}
 				break;
 			case 2:
-				if (this.autonomousTimer.get()>=3.5){
+				if (this.autonomousTimer.get() >= 6.5){
 					this.armSpeedController.set(ARM_FULL_SPEED);
 					this.autonomousState++;
 					this.driverStationLCD.updateLCD();
 				}
 				break;
 			case 3:
-				if (this.autonomousTimer.get()>=4){
+				if (this.autonomousTimer.get() >= 7){
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.autonomousState++;
 					this.driverStationLCD.updateLCD();
@@ -189,6 +191,7 @@ public class Robot2014 extends IterativeRobot {
 		this.invertDriveRotation = this.driverStation.getDigitalIn(ROTATION_INVERSION_D_S_D_I);
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, (this.invertDriveRotation)?"Inverted Rotation    ":"Not inverted rotation");
 		this.driverStationLCD.updateLCD();
+		this.autoArmState = 3;
 	}
     
 	public void teleopDrive(){
@@ -205,11 +208,11 @@ public class Robot2014 extends IterativeRobot {
      */
 	public void teleopPeriodic() {
 		this.watchdog.feed();
+		this.teleopDrive();
 		this.teleopScooper();
 		this.teleopArm();
-		this.teleopDrive();
+		this.teleopAutoArm();
 		this.driverStationLCD.updateLCD();    
-		
 		this.updateDashboard();
 	
 	}
@@ -290,9 +293,44 @@ public class Robot2014 extends IterativeRobot {
 		}
 		this.driverStationLCD.updateLCD();    
 	}
+	
+	public void teleopAutoArm(){
+		if(this.armState!=null){
+			return;
+		}
+		switch(this.autoArmState){
+			case 0:
+				this.autoArmTimer.reset();
+				this.autoArmTimer.start();
+				this.armSpeedController.set(ARM_REVERSE_SPEED);
+				this.autoArmState++;		
+				break;
+			case 1:
+				if (this.autoArmTimer.get() >= .5d){
+					this.armSpeedController.set(ARM_FULL_SPEED);
+					this.autoArmState++;
+				}
+				break;
+			case 2:
+				if (this.autoArmTimer.get() >= 1d){
+					this.armSpeedController.set(ARM_NO_SPEED);
+					this.autoArmState++;
+					this.autoArmTimer.stop();
+				}
+			default:
+				if (this.joystick.getRawAxis(ARM_CONTROL_AXIS)==1d){
+					this.autoArmState = 0;				
+				}
+				break;
+			}
+	}
+	
 	private void teleopArm() {
 	// the button -when axis 3=-1, motor will run only for 1 second
 		String spinningString;
+		if (this.autoArmState <3){
+			return;
+		}
 		switch ((this.armState == null)?-1:(this.armState.booleanValue())?1:0) {
 			case 1:  // do I remember leaving it spinning forward?
 				if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
@@ -325,11 +363,11 @@ public class Robot2014 extends IterativeRobot {
 					this.armState = Boolean.TRUE;
 					spinningString="Spinning Forward  ";
 				}
-				else if (axisValue == 1d) {
-					this.armSpeedController.set(ARM_REVERSE_SPEED);
-					this.armState = Boolean.FALSE;
-					spinningString="Spinning Backwards";
-				}
+				//else if (axisValue == 1d) {
+					//this.armSpeedController.set(ARM_REVERSE_SPEED);
+					//this.armState = Boolean.FALSE;
+					//spinningString="Spinning Backwards";
+				//}
 				else {
 					spinningString="Not Spinning      ";
 				}
