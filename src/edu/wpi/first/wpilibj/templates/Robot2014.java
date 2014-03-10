@@ -8,6 +8,7 @@
 package edu.wpi.first.wpilibj.templates;
 
 
+import edu.wpi.first.wpilibj.AnalogChannel;
 import edu.wpi.first.wpilibj.AnalogModule;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DigitalModule;
@@ -42,6 +43,9 @@ public class Robot2014 extends IterativeRobot {
 	private static final int LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 1;
 	private static final int RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 6;
 	private static final int PHOTO_SENSOR_D_I_O_PORT = 1;
+	private static final int INFRARED_SENSOR_ANALOG_PORT = 7;
+	private static final int INFRARED_SENSOR_AVERAGE_BITS = 2;
+	private static final int INFRARED_SENSOR_OVERSAMPLE_BITS = 4;
 	private static final int ROBOT_MOVEMENT_AXIS = 2;
 	private static final int ROBOT_ROTATE_AXIS = 1;
 	private static final boolean SQUARED_INPUTS = true;
@@ -63,6 +67,7 @@ public class Robot2014 extends IterativeRobot {
 	private Boolean armState;  // null = no spin; true = forward; false = reverse
 	private Timer armTimer;
 	private DigitalInput photoSensorDigitalInput;
+	private AnalogChannel infraredSensorAnalogChannel;
 	private RobotDrive robotDrive;
 	private int scoopTicks=0;
 	private boolean invertDriveRotation = true;
@@ -84,6 +89,9 @@ public class Robot2014 extends IterativeRobot {
 		this.scoopSpeedController = new Talon(4);
 		this.armTimer = new Timer();
 		this.photoSensorDigitalInput = new DigitalInput(PHOTO_SENSOR_D_I_O_PORT);
+		this.infraredSensorAnalogChannel = new AnalogChannel(INFRARED_SENSOR_ANALOG_PORT);
+		this.infraredSensorAnalogChannel.setAverageBits(INFRARED_SENSOR_AVERAGE_BITS);
+		this.infraredSensorAnalogChannel.setOversampleBits(INFRARED_SENSOR_OVERSAMPLE_BITS);
 		this.leftDriveSpeedController = new Talon(LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.rightDriveSpeedController = new Talon(RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.robotDrive = new RobotDrive(this.leftDriveSpeedController, this.rightDriveSpeedController);
@@ -291,6 +299,9 @@ public class Robot2014 extends IterativeRobot {
 				this.driverStationLCD.println(line, pos, axisString);
 			} */
 		}
+		double averageVoltage = this.infraredSensorAnalogChannel.getAverageVoltage();
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser6, 1, "                     ");
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser6, 1, "IR: " + averageVoltage);
 		this.driverStationLCD.updateLCD();    
 	}
 	
