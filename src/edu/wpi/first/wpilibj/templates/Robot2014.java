@@ -8,7 +8,6 @@
 package edu.wpi.first.wpilibj.templates;
 
 
-import edu.wpi.first.wpilibj.AnalogChannel;
 import edu.wpi.first.wpilibj.AnalogModule;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DigitalModule;
@@ -22,8 +21,10 @@ import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.Watchdog;
+
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -43,12 +44,15 @@ public class Robot2014 extends IterativeRobot {
 	private static final int LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 1;
 	private static final int RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT = 6;
 	private static final int PHOTO_SENSOR_D_I_O_PORT = 1;
-	private static final int INFRARED_SENSOR_ANALOG_PORT = 7;
-	private static final int INFRARED_SENSOR_AVERAGE_BITS = 2;
-	private static final int INFRARED_SENSOR_OVERSAMPLE_BITS = 4;
+	private static final int LEFT_A_CHANNEL_D_I_O_PORT = 3;
+	private static final int LEFT_B_CHANNEL_D_I_O_PORT = 4;
+	private static final int RIGHT_A_CHANNEL_D_I_O_PORT = 6;
+	private static final int RIGHT_B_CHANNEL_D_I_O_PORT = 7;
 	private static final int ROBOT_MOVEMENT_AXIS = 2;
 	private static final int ROBOT_ROTATE_AXIS = 1;
 	private static final boolean SQUARED_INPUTS = true;
+	private static final boolean LEFT_ENCODER_REVERSE = true;
+	private static final boolean RIGHT_ENCODER_REVERSE = false;
 	private static final double SCOOP_UP_SPEED = .65d;
 	private static final double SCOOP_DOWN_SPEED = -0.25d;
 	private static final double NOT_SCOOPING = 0d;
@@ -67,7 +71,6 @@ public class Robot2014 extends IterativeRobot {
 	private Boolean armState;  // null = no spin; true = forward; false = reverse
 	private Timer armTimer;
 	private DigitalInput photoSensorDigitalInput;
-	private AnalogChannel infraredSensorAnalogChannel;
 	private RobotDrive robotDrive;
 	private int scoopTicks=0;
 	private boolean invertDriveRotation = true;
@@ -76,6 +79,8 @@ public class Robot2014 extends IterativeRobot {
 	private boolean autonomousMode;
 	private int autoArmState;
 	private Timer autoArmTimer;
+	private Encoder leftEncoder;
+	private Encoder rightEncoder;
 	/**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -89,22 +94,26 @@ public class Robot2014 extends IterativeRobot {
 		this.scoopSpeedController = new Talon(4);
 		this.armTimer = new Timer();
 		this.photoSensorDigitalInput = new DigitalInput(PHOTO_SENSOR_D_I_O_PORT);
-		this.infraredSensorAnalogChannel = new AnalogChannel(INFRARED_SENSOR_ANALOG_PORT);
-		this.infraredSensorAnalogChannel.setAverageBits(INFRARED_SENSOR_AVERAGE_BITS);
-		this.infraredSensorAnalogChannel.setOversampleBits(INFRARED_SENSOR_OVERSAMPLE_BITS);
 		this.leftDriveSpeedController = new Talon(LEFT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.rightDriveSpeedController = new Talon(RIGHT_DRIVE_SPEEDCONTROLLER_PWM_PORT);
 		this.robotDrive = new RobotDrive(this.leftDriveSpeedController, this.rightDriveSpeedController);
 		this.autoArmTimer = new Timer();
+		this.leftEncoder = new Encoder(LEFT_A_CHANNEL_D_I_O_PORT, LEFT_B_CHANNEL_D_I_O_PORT, LEFT_ENCODER_REVERSE);
+		this.rightEncoder = new Encoder(RIGHT_A_CHANNEL_D_I_O_PORT, RIGHT_B_CHANNEL_D_I_O_PORT, RIGHT_ENCODER_REVERSE);
+
 	}
 
-  public void autonomousInit() {
-	  this.autonomousTimer = new Timer();
-	  this.autonomousState = 0;
-	  this.autonomousTimer.reset();
-	  this.autonomousTimer.start();
-	  this.autonomousMode = this.driverStation.getDigitalIn(AUTONOMOUS_MODE_D_S_D_I);
-  }
+	public void autonomousInit() {
+		this.autonomousTimer = new Timer();
+		this.autonomousState = 0;
+		this.autonomousTimer.reset();
+		this.autonomousTimer.start();
+		this.autonomousMode = this.driverStation.getDigitalIn(AUTONOMOUS_MODE_D_S_D_I);
+		this.leftEncoder.reset();
+		this.rightEncoder.reset();
+		this.leftEncoder.start();
+		this.rightEncoder.start();
+	}
 	/**
      * This function is called periodically during autonomous
      */
@@ -116,6 +125,11 @@ public class Robot2014 extends IterativeRobot {
 		else {
 			this.autonomousModeAdvanced();
 		}
+		int leftEncoderCount = this.leftEncoder.get();
+		int rightEncoderCount = this.rightEncoder.get();
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "left encoder count:  "+leftEncoderCount);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "right encoder count: "+rightEncoderCount);
+		this.driverStationLCD.updateLCD();
 	}
 
 	private void autonomousModeAdvanced() {
@@ -200,6 +214,10 @@ public class Robot2014 extends IterativeRobot {
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, (this.invertDriveRotation)?"Inverted Rotation    ":"Not inverted rotation");
 		this.driverStationLCD.updateLCD();
 		this.autoArmState = 3;
+		this.leftEncoder.reset();
+		this.rightEncoder.reset();
+		this.leftEncoder.start();
+		this.rightEncoder.start();
 	}
     
 	public void teleopDrive(){
@@ -273,35 +291,7 @@ public class Robot2014 extends IterativeRobot {
 			}
 			axisString.insert(0, axis + ":"); // starting from the beginnng it puts the axis and the colon to show what will be the numbers
 			this.driverStationLCD.println(line, pos, axisString); //prints out the value into the LCD
-			
-			
-/*			if (Math.abs(axisValue)>axisValue){
-				StringBuffer axisString = new StringBuffer().append(axisValue);
-				axisString.setLength(8);
-				axisString.insert(0, axis + ":");
-				System.out.println("negative axis:" + axisString);
-				this.driverStationLCD.println(line, pos, axisString);
-			}
-			else if (axisValue==0d || axisValue==1d){
-				System.out.println("whole number:" + axisValue);
-				StringBuffer axisString = new StringBuffer().append(axisValue);
-				axisString.setLength(8);
-				axisString.insert(0, axis + ":");
-				this.driverStationLCD.println(line, pos, axisString);
-			}
-			else {
-				StringBuffer axisString = new StringBuffer().append(axisValue);
-				axisString.setLength(7);
-				axisString.setLength(8);
-				//axisString = axis + ":" + axisString;
-				axisString.insert(0, axis + ":");
-				System.out.println("positive axis:" + axisString);
-				this.driverStationLCD.println(line, pos, axisString);
-			} */
 		}
-		double averageVoltage = this.infraredSensorAnalogChannel.getAverageVoltage();
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser6, 1, "                     ");
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser6, 1, "IR: " + averageVoltage);
 		this.driverStationLCD.updateLCD();    
 	}
 	
@@ -383,39 +373,6 @@ public class Robot2014 extends IterativeRobot {
 					spinningString="Not Spinning      ";
 				}
 		}
-/*		if (this.isArmSpinningForward) {
-			if (this.armTimer.get()>= ARM_TIMEOUT_THRESHOLD) {
-				this.armSpeedController.set(ARM_NO_SPEED);
-				this.armTimer.stop();
-				this.isArmSpinningForward = false;
-				this.armState = null;
-				spinningString="Not Spinning      ";
-			} else {
-				this.armState = Boolean.TRUE;
-				spinningString="Spinning Forward  ";
-			}
-		} else {
-			double axisValue = this.joystick.getRawAxis(ARM_CONTROL_AXIS);
-			
-			if (axisValue == -1d) {
-				this.armSpeedController.set(ARM_FULL_SPEED); // going from no motion to full motion
-				this.isArmSpinningForward = true; //to remember that motor is running
-				this.armTimer.reset();
-				this.armTimer.start();
-				this.armState = Boolean.TRUE;
-				spinningString="Spinning Forward  ";
-			}
-			else if (axisValue == 1d) {
-				this.armSpeedController.set(ARM_REVERSE_SPEED);
-				this.armState = Boolean.FALSE;
-				spinningString="Spinning Backwards";
-			}
-			else {
-				this.armSpeedController.set(ARM_NO_SPEED);
-				this.armState = null;
-				spinningString="Not Spinning      ";
-			}
-		} */
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser6,1, spinningString);
 	}
 	
