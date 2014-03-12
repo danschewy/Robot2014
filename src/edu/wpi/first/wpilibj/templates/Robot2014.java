@@ -127,8 +127,8 @@ public class Robot2014 extends IterativeRobot {
 		}
 		int leftEncoderCount = this.leftEncoder.get();
 		int rightEncoderCount = this.rightEncoder.get();
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "left encoder count:  "+leftEncoderCount);
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "right encoder count: "+rightEncoderCount);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "LE count:  "+leftEncoderCount);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "RE count: "+rightEncoderCount);
 		this.driverStationLCD.updateLCD();
 	}
 
@@ -138,11 +138,6 @@ public class Robot2014 extends IterativeRobot {
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, "autonomousState=" + this.autonomousState);
 		switch (this.autonomousState) {
 			case 0:
-				this.scoopSpeedController.set(SCOOP_DOWN_SPEED);
-				this.autonomousState++;
-				this.driverStationLCD.updateLCD();
-				break;
-			case 1:
 				moveValue = .6d;
 				rotateValue = -.2d;
 				this.robotDrive.arcadeDrive( moveValue, rotateValue);
@@ -161,14 +156,14 @@ public class Robot2014 extends IterativeRobot {
 					this.driverStationLCD.updateLCD();
 				}
 				break;
-			case 2:
+			case 1:
 				if (this.autonomousTimer.get() >= 6.5){
 					this.armSpeedController.set(ARM_FULL_SPEED);
 					this.autonomousState++;
 					this.driverStationLCD.updateLCD();
 				}
 				break;
-			case 3:
+			case 2:
 				if (this.autonomousTimer.get() >= 7){
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.autonomousState++;
@@ -225,6 +220,11 @@ public class Robot2014 extends IterativeRobot {
 		double rotateValue = this.joystick.getRawAxis(ROBOT_ROTATE_AXIS);
 		this.robotDrive.arcadeDrive( moveValue, ((this.invertDriveRotation)?-1d:1d)*rotateValue, SQUARED_INPUTS);
 		
+		int leftEncoderCount = this.leftEncoder.get();
+		int rightEncoderCount = this.rightEncoder.get();
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "LE count:  "+leftEncoderCount);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "RE count: "+rightEncoderCount);
+		this.driverStationLCD.updateLCD();
 	} 
 	
 	
