@@ -195,7 +195,7 @@ public class Robot2014 extends IterativeRobot {
 		}
 		double reDouble = rightEncoderCount;
 		double leDouble = leftEncoderCount;
-		double encoderRatio = 1d-(REdouble/LEdouble);
+		double encoderRatio = 1d-(reDouble/leDouble);
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser6, 1,"rotateValue= "+encoderRatio);
 		this.driverStationLCD.updateLCD();
 		return encoderRatio;
