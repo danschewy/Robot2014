@@ -190,7 +190,7 @@ public class Robot2014 extends IterativeRobot {
 	}
    
     public double calculateRotation(int leftEncoderCount, int rightEncoderCount){
-		if (leftEncoderCount==0){
+		if ((leftEncoderCount==0) || (rightEncoderCount==0)) {
 			return -.2d;
 		}
 		double reDouble = rightEncoderCount;
