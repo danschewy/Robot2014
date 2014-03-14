@@ -112,6 +112,7 @@ public class Robot2014 extends IterativeRobot {
 		this.autonomousTimer.start();
 		this.autonomousMode = this.driverStation.getDigitalIn(AUTONOMOUS_MODE_D_S_D_I);
 		this.autohammer = this.driverStation.getDigitalIn(AUTO_HAMMER_D_S_D_I);
+		this.driverStationLCD.println(DriverStationLCD.Line.kUser2, 1, "auto-hammer="+this.autohammer);
 		this.leftEncoder.reset();
 		this.rightEncoder.reset();
 		this.leftEncoder.start();
@@ -139,6 +140,8 @@ public class Robot2014 extends IterativeRobot {
 	private void autonomousModeAdvanced(int leftEncoderCount, int rightEncoderCount) {
 		double moveValue;
 		double rotateValue;
+		int leftCountRem= -5400-leftEncoderCount;
+		int rightCountRem= -5400-rightEncoderCount;
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser1, 1, "autonomousState=" + this.autonomousState);
 		switch (this.autonomousState) {
 			case 0:
@@ -148,7 +151,7 @@ public class Robot2014 extends IterativeRobot {
 				break;
 			case 1:
 				moveValue = .6d;
-				rotateValue = this.calculateRotation(leftEncoderCount, rightEncoderCount);
+				rotateValue = this.calculateRotation(leftCountRem, rightCountRem);
 				this.robotDrive.arcadeDrive( moveValue, rotateValue); 
 				
 				if (this.autonomousTimer.get() >= 1d ){
@@ -190,8 +193,8 @@ public class Robot2014 extends IterativeRobot {
 	}
    
     public double calculateRotation(int leftEncoderCount, int rightEncoderCount){
-		if ((leftEncoderCount==0) || (rightEncoderCount==0)) {
-			return -.2d;
+		if ((leftEncoderCount==0)) {
+			return -1d;
 		}
 		double reDouble = rightEncoderCount;
 		double leDouble = leftEncoderCount;
