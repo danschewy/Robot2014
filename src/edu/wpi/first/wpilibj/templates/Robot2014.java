@@ -131,7 +131,6 @@ public class Robot2014 extends IterativeRobot {
 		else {
 			this.autonomousModeAdvanced(leftEncoderCount, rightEncoderCount);
 		}
-		
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "LE count: "+leftEncoderCount);
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "RE count: "+rightEncoderCount);
 		this.driverStationLCD.updateLCD();
@@ -150,18 +149,25 @@ public class Robot2014 extends IterativeRobot {
 				this.driverStationLCD.updateLCD();
 				break;
 			case 1:
-				moveValue = .6d;
+				moveValue = .8d;
 				rotateValue = this.calculateRotation(leftCountRem, rightCountRem);
 				this.robotDrive.arcadeDrive( moveValue, rotateValue); 
 				
 				if (this.autonomousTimer.get() >= 1d ){
 					this.scoopSpeedController.set(0);
-				}
-					
-				if (this.autonomousTimer.get() >= 6d ){
+				}	
+				if ((this.autonomousTimer.get() >= 4d ) || 
+						((rightEncoderCount < -5400) && (leftEncoderCount < -5400))){
 					moveValue = 0d;
 					rotateValue = 0d;
 					this.robotDrive.arcadeDrive( moveValue, rotateValue);
+					this.driverStationLCD.println(DriverStationLCD.Line.kUser2, 1,"stopped at: " + this.autonomousTimer.get());
+					this.autonomousState++;
+					this.driverStationLCD.updateLCD();
+				}
+				break;
+			case 2:
+				if (this.autonomousTimer.get() >= 4d ){
 					if (this.autohammer){
 						this.armSpeedController.set(ARM_REVERSE_SPEED);
 					}
@@ -169,8 +175,8 @@ public class Robot2014 extends IterativeRobot {
 					this.driverStationLCD.updateLCD();
 				}
 				break;
-			case 1:
-				if (this.autonomousTimer.get() >= 6.5){
+			case 3:
+				if (this.autonomousTimer.get() >= 4.5d){
 					if (this.autohammer){
 						this.armSpeedController.set(ARM_FULL_SPEED);
 					}
@@ -178,8 +184,8 @@ public class Robot2014 extends IterativeRobot {
 					this.driverStationLCD.updateLCD();
 				}
 				break;
-			case 2:
-				if (this.autonomousTimer.get() >= 7){
+			case 4:
+				if (this.autonomousTimer.get() >= 5d){
 					this.armSpeedController.set(ARM_NO_SPEED);
 					this.autonomousState++;
 					this.driverStationLCD.updateLCD();
@@ -252,11 +258,6 @@ public class Robot2014 extends IterativeRobot {
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "LE count: "+leftEncoderCount);
 		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "RE count: "+rightEncoderCount);
 		
-		int leftEncoderCount = this.leftEncoder.get();
-		int rightEncoderCount = this.rightEncoder.get();
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser3, 1, "LE count:  "+leftEncoderCount);
-		this.driverStationLCD.println(DriverStationLCD.Line.kUser4, 1, "RE count: "+rightEncoderCount);
-		this.driverStationLCD.updateLCD();
 	} 
 	
 	
